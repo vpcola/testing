@@ -29,71 +29,88 @@ const lmic_pinmap_t lmic_pins = {
 
 const unsigned TX_INTERVAL = 30;
 
+void do_send()
+{
+    if (LMIC.opmode & OP_TXRXPEND) {
+        printf("OP_TXRXPEND, not sending\n");
+    } else {
+        // Prepare upstream data transmission at the next possible time.
+        LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
+        printf("Packet queued\n");
+    }
+}
+
+void do_receive()
+{
+    if (LMIC.dataLen > 0)
+    {
+        // TODO: Copy and process the data from LMIC.dataBeg to a buffer
+        printf("Received %d of data\n", LMIC.dataLen);
+    }
+}
+
 void onEvent (ev_t ev) {
     printf("%d", os_getTime());
     printf(": ");
     switch(ev) {
         case EV_SCAN_TIMEOUT:
-            printf("EV_SCAN_TIMEOUT");
+            printf("EV_SCAN_TIMEOUT\n");
             break;
         case EV_BEACON_FOUND:
-            printf("EV_BEACON_FOUND");
+            printf("EV_BEACON_FOUND\n");
             break;
         case EV_BEACON_MISSED:
-            printf("EV_BEACON_MISSED");
+            printf("EV_BEACON_MISSED\n");
             break;
         case EV_BEACON_TRACKED:
-            printf("EV_BEACON_TRACKED");
+            printf("EV_BEACON_TRACKED\n");
             break;
         case EV_JOINING:
-            printf("EV_JOINING");
+            printf("EV_JOINING\n");
             break;
         case EV_JOINED:
-            printf("EV_JOINED");
+            printf("EV_JOINED\n");
             break;
         case EV_RFU1:
-            printf("EV_RFU1");
+            printf("EV_RFU1\n");
             break;
         case EV_JOIN_FAILED:
-            printf("EV_JOIN_FAILED");
+            printf("EV_JOIN_FAILED\n");
             break;
         case EV_REJOIN_FAILED:
-            printf("EV_REJOIN_FAILED");
+            printf("EV_REJOIN_FAILED\n");
             break;
         case EV_TXCOMPLETE:
-            printf("EV_TXCOMPLETE (includes waiting for RX windows)");
+            printf("EV_TXCOMPLETE (includes waiting for RX windows)\n");
             if (LMIC.txrxFlags & TXRX_ACK)
-              printf("Received ack");
+              printf("Received ack\n");
             if (LMIC.dataLen) {
-              printf("Received %d bytes fo payload", LMIC.dataLen);
+              printf("Received %d bytes of payload\n", LMIC.dataLen);
             }
 
-            if (LMIC.opmode & OP_TXRXPEND) {
-                printf("OP_TXRXPEND, not sending");
-            } else {
-                // Prepare upstream data transmission at the next possible time.
-                LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-                printf("Packet queued");
-            }
+            do_send();
+
             break;
         case EV_LOST_TSYNC:
-            printf("EV_LOST_TSYNC");
+            printf("EV_LOST_TSYNC\n");
             break;
         case EV_RESET:
-            printf("EV_RESET");
+            printf("EV_RESET\n");
             break;
         case EV_RXCOMPLETE:
             // data received in ping slot
-            printf("EV_RXCOMPLETE");
+            printf("EV_RXCOMPLETE\n");
+            do_receive();
+
             break;
         case EV_LINK_DEAD:
-            printf("EV_LINK_DEAD");
+            printf("EV_LINK_DEAD\n");
             break;
         case EV_LINK_ALIVE:
-            printf("EV_LINK_ALIVE");
+            printf("EV_LINK_ALIVE\n");
             break;
          default:
-            printf("Unknown event: %d", ev);
+            printf("Unknown event: %d\n", ev);
             break;
     }
 }
@@ -103,16 +120,10 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-void os_runloop(void) {
+void os_runloop(void * arg) 
+{
 
-  if (LMIC.opmode & OP_TXRXPEND) {
-      printf("OP_TXRXPEND, not sending");
-  } else {
-      // Prepare upstream data transmission at the next possible time.
-      LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-      printf("Packet queued");
-  }
-
+  do_send();
 
   while(1) {
     os_run();
@@ -125,7 +136,7 @@ void app_main(void)
   os_init();
 
   LMIC_reset();
-  printf("LMIC RESET");
+  printf("LMIC RESET\n");
 
   uint8_t appskey[sizeof(APPSKEY)];
   uint8_t nwkskey[sizeof(NWKSKEY)];
