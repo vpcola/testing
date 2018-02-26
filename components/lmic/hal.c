@@ -7,12 +7,18 @@
 #include "driver/timer.h"
 #include "esp_log.h"
 
+// Move this to main.c so that it'll be
+// easy to assign pin mappings there
+#if 0
 const lmic_pinmap_t lmic_pins = {
     .nss = 22,
     .rst = 19,
     .dio = {23, 18, 5},
     .spi = {4, 2, 17},
 };
+#endif
+
+extern const lmic_pinmap_t lmic_pins;
 
 // -----------------------------------------------------------------------------
 // I/O
