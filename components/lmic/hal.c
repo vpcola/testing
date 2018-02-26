@@ -72,6 +72,11 @@ void hal_pin_rst (u1_t val) {
 
 bool dio_states[3];
 
+// TODO: Make a proper interrupt handling here with DIOs. Make use
+// of FreeRTOS queues xQueueSendFromISR()/xQueueReceive() for proper
+// handling.
+//
+// Note: From 1276/rfm95w specs, the DIO lines are positive edge triggered
 void hal_io_check() {
   if (dio_states[0] != gpio_get_level(lmic_pins.dio[0])) {
     dio_states[0] = !dio_states[0];
