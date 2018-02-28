@@ -155,8 +155,7 @@ void app_main(void)
   LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
   LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK, DR_FSK), BAND_MILLI); // g2-band
 #elif defined(CFG_us915)
-  // Use the first channel - 0, us does not have SF12
-  LMIC_setupChannel(0, 902300000, DR_RANGE_MAP(DR_SF10, DR_SF8C), 0); // band unused
+  LMIC_selectSubBand(0); 
 #endif
 
   LMIC_setLinkCheckMode(0);
