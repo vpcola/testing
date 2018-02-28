@@ -19,7 +19,7 @@ static uint8_t mydata[] = "Uela!";
 
 // Using the TTGO ESP32 Lora or Heltec ESP32 Lora board
 // https://www.thethingsnetwork.org/forum/t/big-esp32-sx127x-topic-part-2/11973
-const lmic_pinmap_t lmic_pins = {
+extern "C" const lmic_pinmap_t lmic_pins = {
     .nss = 18,
     .rst = 14,
     .dio = {26, 33, 22},
@@ -27,10 +27,11 @@ const lmic_pinmap_t lmic_pins = {
     .spi = {19, 27, 5},
 };
 
-const unsigned TX_INTERVAL = 30;
+const unsigned TX_INTERVAL = 1000;
 
-void do_send()
+void do_send(osjob_t * arg)
 {
+    printf("do_send() called! ... Sending data!\n");
     if (LMIC.opmode & OP_TXRXPEND) {
         printf("OP_TXRXPEND, not sending\n");
     } else {
@@ -49,7 +50,8 @@ void do_receive()
     }
 }
 
-void onEvent (ev_t ev) {
+// Callbacks from lmic, needs C linkage
+extern "C" void onEvent (ev_t ev) {
     printf("%d", os_getTime());
     printf(": ");
     switch(ev) {
@@ -87,9 +89,8 @@ void onEvent (ev_t ev) {
             if (LMIC.dataLen) {
               printf("Received %d bytes of payload\n", LMIC.dataLen);
             }
-
-            do_send();
-
+            // Schedule the send job at some dela
+            os_setTimedCallback(&LMIC.osjob, os_getTime()+TX_INTERVAL, FUNC_ADDR(do_send));
             break;
         case EV_LOST_TSYNC:
             printf("EV_LOST_TSYNC\n");
@@ -101,7 +102,6 @@ void onEvent (ev_t ev) {
             // data received in ping slot
             printf("EV_RXCOMPLETE\n");
             do_receive();
-
             break;
         case EV_LINK_DEAD:
             printf("EV_LINK_DEAD\n");
@@ -110,28 +110,22 @@ void onEvent (ev_t ev) {
             printf("EV_LINK_ALIVE\n");
             break;
          default:
-            printf("Unknown event: %d\n", ev);
+            // printf("Unknown event: %d\n", ev);
             break;
     }
 }
 
-esp_err_t event_handler(void *ctx, system_event_t *event)
-{
-    return ESP_OK;
-}
-
 void os_runloop(void * arg) 
 {
-
-  do_send();
+  do_send(NULL);
 
   while(1) {
     os_run();
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    // vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
-void app_main(void)
+extern "C" void app_main(void)
 {
   os_init();
 

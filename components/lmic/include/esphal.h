@@ -5,7 +5,12 @@
 #define CFG_us915 1
 #define CFG_sx1276_radio 1
 
-static const char* TAG = "LMIC_HAL";
+
+#define USE_GPIO_INTERRUPTS 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     u1_t nss;
@@ -76,10 +81,20 @@ void hal_waitUntil (u4_t time);
 u1_t hal_checkTimer (u4_t targettime);
 
 /*
+ * check if any interrupts has sent data to the queue and handles them
+ *
+ */
+void hal_io_check(void);
+
+/*
  * perform fatal failure action.
  *   - called by assertions
  *   - action could be HALT or reboot
  */
 void hal_failed (void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _hal_hpp_

@@ -114,6 +114,13 @@ void os_run () {
       hal_sleep(); // wake by irq (timer already restarted)
   }
   hal_enableIRQs();
+
+#ifdef USE_GPIO_INTERRUPTS
+  // Call hal_iocheck() to find out pending
+  // IRQ's that needs to be serviced.
+  hal_io_check();
+#endif
+
   if(j) { // run job callback
       j->func(j);
   }

@@ -51,7 +51,12 @@ typedef unsigned int       uint;
 typedef const char* str_t;
 
 #include <string.h>
-#include "hal.h"
+#include "esphal.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    
 #define EV(a,b,c) /**/
 #define DO_DEVDB(field1,field2) /**/
 #if !defined(CFG_noassert)
@@ -227,6 +232,8 @@ extern xref2u1_t AESaux;
 u4_t os_aes (u1_t mode, xref2u1_t buf, u2_t len);
 #endif
 
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _oslmic_h_

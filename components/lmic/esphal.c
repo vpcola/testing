@@ -2,10 +2,14 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "driver/timer.h"
 #include "esp_log.h"
+
+
+static const char* TAG = "LMIC_HAL";
 
 // Move this to main.c so that it'll be
 // easy to assign pin mappings there
@@ -19,6 +23,21 @@ const lmic_pinmap_t lmic_pins = {
 #endif
 
 extern const lmic_pinmap_t lmic_pins;
+
+#define ESP_INTR_FLAG_DEFAULT 0
+
+#ifdef USE_GPIO_INTERRUPTS
+static xQueueHandle gpio_evt_queue = NULL;
+
+// -----------------------------------------------------------------------------
+// ISR handler
+static void IRAM_ATTR gpio_isr_handler(void * arg)
+{
+    uint32_t dionum = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &dionum, NULL);
+}
+
+#endif
 
 // -----------------------------------------------------------------------------
 // I/O
@@ -34,9 +53,29 @@ static void hal_io_init () {
   io_conf.pull_up_en = 0;
   gpio_config(&io_conf);
 
+#ifdef USE_GPIO_INTERRUPTS
+  // Setup all DIO pins to use interrupts
+  // DIOs are activated on the rising edge
+  io_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
+  io_conf.pin_bit_mask = ((1ULL<<lmic_pins.dio[0]) | (1ULL<<lmic_pins.dio[1]) | (1ULL<<lmic_pins.dio[2]));
+  io_conf.mode = GPIO_MODE_INPUT;
+  io_conf.pull_up_en = 1;
+#else
   io_conf.mode = GPIO_MODE_INPUT;
   io_conf.pin_bit_mask = ((1ULL<<lmic_pins.dio[0]) | (1ULL<<lmic_pins.dio[1]) | (1ULL<<lmic_pins.dio[2]));
+#endif
+
   gpio_config(&io_conf);
+
+#ifdef USE_GPIO_INTERRUPTS
+  // Create a queue to handle the event from ISR
+  gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+  gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+  // hook isr handler to the specific GPIO pins
+  gpio_isr_handler_add(lmic_pins.dio[0], gpio_isr_handler, (void *) 0);
+  gpio_isr_handler_add(lmic_pins.dio[1], gpio_isr_handler, (void *) 1);
+  gpio_isr_handler_add(lmic_pins.dio[2], gpio_isr_handler, (void *) 2);
+#endif
 
   ESP_LOGI(TAG, "Finished IO initialization");
 }
@@ -70,13 +109,27 @@ void hal_pin_rst (u1_t val) {
   }
 }
 
-bool dio_states[3];
+#ifdef USE_GPIO_INTERRUPTS
+// Called by the os_runloop routing to check
+// if there are any pending interrupts that need
+// to be services
+void hal_io_check()
+{
+    uint32_t io_num;
+    // Block 10 ticks if message is not immediately
+    // available
+    if (xQueueReceive(gpio_evt_queue, &io_num, (TickType_t) 10))
+    {
+        ESP_LOGI(TAG, "Received interrupt from DIO[%d]!", io_num);
+        radio_irq_handler(io_num);
+    }
+}
 
-// TODO: Make a proper interrupt handling here with DIOs. Make use
-// of FreeRTOS queues xQueueSendFromISR()/xQueueReceive() for proper
-// handling.
-//
-// Note: From 1276/rfm95w specs, the DIO lines are positive edge triggered
+#else
+// Attach hal_io_check() to hal_enableIRQs below
+// since lmic would usually call this routine to 
+// check if there are changes to the dio states.
+bool dio_states[3];
 void hal_io_check() {
   if (dio_states[0] != gpio_get_level(lmic_pins.dio[0])) {
     dio_states[0] = !dio_states[0];
@@ -102,6 +155,7 @@ void hal_io_check() {
     }
   }
 }
+#endif
 
 // -----------------------------------------------------------------------------
 // SPI
@@ -156,7 +210,8 @@ u1_t hal_spi (u1_t data) {
 // -----------------------------------------------------------------------------
 // TIME
 
-static void hal_time_init () {
+static void hal_time_init () 
+{
   ESP_LOGI(TAG, "Starting initialisation of timer");
   int timer_group = TIMER_GROUP_0;
   int timer_idx = TIMER_1;
@@ -182,9 +237,6 @@ static void hal_time_init () {
 u4_t hal_ticks () {
   uint64_t val;
   timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &val);
-  //ESP_LOGD(TAG, "Getting time ticks");
-  printf("Getting some ticks\n");
-  vTaskDelay(1 / portTICK_PERIOD_MS);
   uint32_t t = (uint32_t) val;
   //u4_t result = (u4_t) us2osticks(t);
   return t;
@@ -220,20 +272,22 @@ int x_irq_level = 0;
 
 // -----------------------------------------------------------------------------
 // IRQ
-
+// hal_disableIRQs()/hal_enableIRQs() in LMIC act more like mutex
+// to prevent execution when one task is using a certain resource (such as the radio).
+// So we use mutex here in place of truly disabling interrupts.
 void hal_disableIRQs () {
-  //ESP_LOGD(TAG, "Disabling interrupts");
   if(x_irq_level < 1){
-      //taskDISABLE_INTERRUPTS();
+     //taskDISABLE_INTERRUPTS();
   }
   x_irq_level++;
 }
 
 void hal_enableIRQs () {
-  //ESP_LOGD(TAG, "Enable interrupts");
   if(--x_irq_level == 0){
-      //taskENABLE_INTERRUPTS();
-      hal_io_check();
+    //taskENABLE_INTERRUPTS();
+#ifndef USE_GPIO_INTERRUPTS
+    hal_io_check();
+#endif
   }
 }
 
