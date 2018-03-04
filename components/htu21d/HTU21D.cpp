@@ -1,5 +1,10 @@
 #include "HTU21D.h"
 
+void HTU21D::init()
+{
+    // Initialization data goes here
+}
+
 bool HTU21D::readTemperature(float * temperature)
 {
     uint8_t writeData = TRIGGER_TEMP_MEASURE;
@@ -10,11 +15,11 @@ bool HTU21D::readTemperature(float * temperature)
    // wait for 60ms before reading the temperature 
    // value
    if ( (errRc = m_i2c.write(m_address, &writeData, 1, true)) != ESP_OK)
-       return errRc;
+       return false;
 
    vTaskDelay(60 / portTICK_RATE_MS );
    if (( errRc = m_i2c.read(m_address, &readData[0], 2, true) ) != ESP_OK)
-       return errRc;
+       return false;
 
    // Process temperature value
 
@@ -38,11 +43,11 @@ bool HTU21D::readHumidity(float * humidity)
     // wait for 60ms before reading the temperature 
     // value
     if ( (errRc = m_i2c.write(m_address, &writeData, 1, true)) != ESP_OK)
-        return errRc;
+        return false;
 
     vTaskDelay(60 / portTICK_RATE_MS );
     if (( errRc = m_i2c.read(m_address, &readData[0], 2, true) ) != ESP_OK)
-        return errRc;
+        return false;
 
     // Process humidity value
 

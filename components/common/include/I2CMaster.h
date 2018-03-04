@@ -23,12 +23,16 @@
 class I2CMaster
 {
     public:
-        I2CMaster(i2c_port_t i2cnum = I2C_NUM_1)
-            :i2c_port(i2cnum)
+        I2CMaster(i2c_port_t i2cnum = I2C_NUM_1, gpio_num_t sda = I2C_MASTER_SDA_IO, gpio_num_t scl = I2C_MASTER_SCL_IO,
+        uint32_t freq = I2C_MASTER_FREQ_HZ)
+            :i2c_port(i2cnum),
+            m_sda(sda),
+            m_scl(scl),
+            m_freq(freq)
         {}
         ~I2CMaster() {}
 
-        void init(gpio_num_t scl = I2C_MASTER_SCL_IO, gpio_num_t sda = I2C_MASTER_SDA_IO, uint32_t freq = I2C_MASTER_FREQ_HZ);
+        void init();
         esp_err_t write(uint8_t addr, uint8_t * bytes, size_t length, bool ack);
         esp_err_t read(uint8_t addr, uint8_t * bytes, size_t length, bool ack);
 
@@ -39,6 +43,9 @@ class I2CMaster
         esp_err_t        endTransaction(i2c_cmd_handle_t cmd);
 
         i2c_port_t i2c_port;
+        gpio_num_t m_sda;
+        gpio_num_t m_scl;
+        uint32_t m_freq;
 };
 
 #endif

@@ -3,16 +3,16 @@
 
 static const char * TAG = "I2C";
 
-void I2CMaster::init(gpio_num_t scl, gpio_num_t sda, uint32_t freq)
+void I2CMaster::init()
 {
 	i2c_config_t conf;
     // Initialize I2C, enable pull-up resistors
 	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = sda;
+	conf.sda_io_num = m_sda;
 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.scl_io_num = scl;
+	conf.scl_io_num = m_scl;
 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.master.clk_speed = freq;
+	conf.master.clk_speed = m_freq;
     esp_err_t errRc = ::i2c_param_config(i2c_port, &conf);
     if (errRc != ESP_OK)
     {

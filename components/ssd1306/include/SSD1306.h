@@ -16,11 +16,12 @@
 class SSD1306
 {
     public:
-        SSD1306(I2CMaster & i2c, uint8_t address = SSD1306_I2C_ADDR)
+        SSD1306(I2CMaster & i2c, uint8_t address = SSD1306_I2C_ADDR, int8_t reset_pin = -1)
             :m_i2c(i2c),
             m_address(address),
             m_currentx(0), 
             m_currenty(0),
+            m_resetpin(reset_pin),
             m_inverted(false),
             m_initialized(false)
         {}
@@ -58,6 +59,7 @@ class SSD1306
         uint8_t m_address;
         uint16_t m_currentx;
         uint16_t m_currenty;
+        int8_t  m_resetpin;
         bool m_inverted;
         bool m_initialized;
 

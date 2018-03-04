@@ -16,6 +16,7 @@ class HTU21D {
         {}
         ~HTU21D() {}
 
+        void init();
         bool readTemperature(float * temperature);
         bool readHumidity(float * humidity);
     private:

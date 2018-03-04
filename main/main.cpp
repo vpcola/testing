@@ -6,6 +6,8 @@
 #include "nvs_flash.h"
 
 #include "lmic.h"
+#include "I2CMaster.h"
+#include "SSD1306.h"
 
 u1_t NWKSKEY[16] = { 0xD6, 0x6D, 0xC7, 0x16, 0xE7, 0x90, 0xB8, 0x39, 0x8A, 0x6A, 0xE9, 0xA4, 0x15, 0x48, 0x21, 0x69 };
 u1_t APPSKEY[16] = { 0x29, 0x0E, 0x5C, 0xF7, 0xA1, 0x41, 0x3C, 0x5A, 0x8B, 0xF9, 0x12, 0x96, 0xE3, 0xBA, 0x54, 0x40 };
@@ -27,7 +29,10 @@ extern "C" const lmic_pinmap_t lmic_pins = {
     .spi = {19, 27, 5},
 };
 
-const unsigned TX_INTERVAL = 1000;
+I2CMaster i2c(I2C_NUM_1, GPIO_NUM_4, GPIO_NUM_15);
+SSD1306   ssd(i2c, SSD1306_I2C_ADDR, GPIO_NUM_16);
+
+const unsigned TX_INTERVAL = 5000;
 
 void do_send(osjob_t * arg)
 {
@@ -36,6 +41,9 @@ void do_send(osjob_t * arg)
         printf("OP_TXRXPEND, not sending\n");
     } else {
         // Prepare upstream data transmission at the next possible time.
+        ssd.Puts("Sending data...", &Font_7x10, SSD1306::White);
+        ssd.UpdateScreen();
+
         LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
         printf("Packet queued\n");
     }
@@ -128,6 +136,8 @@ void os_runloop(void * arg)
 extern "C" void app_main(void)
 {
   os_init();
+  i2c.init();
+  ssd.init();
 
   LMIC_reset();
   printf("LMIC RESET\n");

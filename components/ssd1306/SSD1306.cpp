@@ -36,6 +36,18 @@ void SSD1306::PowerOff()
 
 void SSD1306::init()
 {
+    //if (GPIO_IS_VALID_GPIO(m_resetpin))
+    if ((m_resetpin > 0) && (m_resetpin < GPIO_PIN_COUNT)) 
+    {
+        // reset the oled
+        gpio_pad_select_gpio((gpio_num_t) m_resetpin);
+        /* Set the GPIO as a push/pull output */
+        gpio_set_direction((gpio_num_t) m_resetpin, GPIO_MODE_OUTPUT);
+        gpio_set_level((gpio_num_t) m_resetpin, 0);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        gpio_set_level((gpio_num_t) m_resetpin, 1);
+
+    }
     /* Init LCD */
     write_command(0xAE); //display off
     write_command(0x20); //Set Memory Addressing Mode

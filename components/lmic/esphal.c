@@ -251,8 +251,9 @@ static s4_t delta_time(u4_t time) {
 
 void hal_waitUntil (u4_t time) {
 
-    ESP_LOGI(TAG, "Wait until");
+    ESP_LOGI(TAG, "Wait until (%d)", time);
     s4_t delta = delta_time(time);
+    ESP_LOGI(TAG, "Wait delta %d", delta);
 
     while( delta > 2000){
         vTaskDelay(1 / portTICK_PERIOD_MS);
