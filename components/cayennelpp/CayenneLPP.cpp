@@ -9,15 +9,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-CayenneLPP::CayenneLPP(uint8_t size) : maxsize(size)
-{
-  buffer = (uint8_t *) pvPortMalloc(size);
-  cursor = 0;
-}
 
 CayenneLPP::~CayenneLPP(void)
 {
-  vPortFree((void *) buffer);
 }
 
 void CayenneLPP::reset(void)
@@ -35,7 +29,7 @@ uint8_t *CayenneLPP::getBuffer(void)
   //    uint8_t[cursor] result;
   //    memcpy(result, buffer, cursor);
   //    return result;
-  return buffer;
+  return &buffer[0];
 }
 
 uint8_t CayenneLPP::copy(uint8_t *dst)

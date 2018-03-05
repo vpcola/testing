@@ -8,6 +8,8 @@
 #include "lmic.h"
 #include "I2CMaster.h"
 #include "SSD1306.h"
+#include "HTU21D.h"
+#include "CayenneLPP.h"
 
 u1_t NWKSKEY[16] = { 0xD6, 0x6D, 0xC7, 0x16, 0xE7, 0x90, 0xB8, 0x39, 0x8A, 0x6A, 0xE9, 0xA4, 0x15, 0x48, 0x21, 0x69 };
 u1_t APPSKEY[16] = { 0x29, 0x0E, 0x5C, 0xF7, 0xA1, 0x41, 0x3C, 0x5A, 0x8B, 0xF9, 0x12, 0x96, 0xE3, 0xBA, 0x54, 0x40 };
@@ -24,27 +26,50 @@ static uint8_t mydata[] = "Uela!";
 extern "C" const lmic_pinmap_t lmic_pins = {
     .nss = 18,
     .rst = 14,
-    .dio = {26, 33, 22},
+    .dio = {26, 33, 32},
     // MISO, MOSI, SCK
     .spi = {19, 27, 5},
 };
 
+// I2CMaster (I2C Num, SDA, SCL)
 I2CMaster i2c(I2C_NUM_1, GPIO_NUM_4, GPIO_NUM_15);
-SSD1306   ssd(i2c, SSD1306_I2C_ADDR, GPIO_NUM_16);
+SSD1306   ssd(i2c, GPIO_NUM_16);
+HTU21D    htu(i2c);
+CayenneLPP lpp;
 
 const unsigned TX_INTERVAL = 5000;
 
 void do_send(osjob_t * arg)
 {
+    char tmpbuff[50];
+    lpp.reset();
+
     printf("do_send() called! ... Sending data!\n");
     if (LMIC.opmode & OP_TXRXPEND) {
         printf("OP_TXRXPEND, not sending\n");
     } else {
+        float temperature;
+        float humidity;
+        ssd.Fill(SSD1306::Black);
         // Prepare upstream data transmission at the next possible time.
-        ssd.Puts("Sending data...", &Font_7x10, SSD1306::White);
+        if (htu.readTemperature(&temperature))
+        {
+            sprintf(tmpbuff, "Temperature : %.2f C", temperature);
+            ssd.GotoXY(0, 15);
+            ssd.Puts(&tmpbuff[0], &Font_7x10, SSD1306::White);
+            lpp.addTemperature(1, temperature);
+        }
+        if (htu.readHumidity(&humidity))
+        {
+            sprintf(tmpbuff, "Humidity   : %.2f%%", humidity);
+            ssd.GotoXY(0,27);
+            ssd.Puts(&tmpbuff[0], &Font_7x10, SSD1306::White);
+            lpp.addRelativeHumidity(2, humidity);
+        }
         ssd.UpdateScreen();
 
-        LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
+        //LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
+        LMIC_setTxData2(1, lpp.getBuffer(), lpp.getSize(), 0); 
         printf("Packet queued\n");
     }
 }
@@ -60,7 +85,7 @@ void do_receive()
 
 // Callbacks from lmic, needs C linkage
 extern "C" void onEvent (ev_t ev) {
-    printf("%d", os_getTime());
+    printf("%lld", os_getTime());
     printf(": ");
     switch(ev) {
         case EV_SCAN_TIMEOUT:
@@ -98,7 +123,7 @@ extern "C" void onEvent (ev_t ev) {
               printf("Received %d bytes of payload\n", LMIC.dataLen);
             }
             // Schedule the send job at some dela
-            os_setTimedCallback(&LMIC.osjob, os_getTime()+TX_INTERVAL, FUNC_ADDR(do_send));
+            os_setTimedCallback(&LMIC.osjob, os_getTime()+ms2osticks(TX_INTERVAL), FUNC_ADDR(do_send));
             break;
         case EV_LOST_TSYNC:
             printf("EV_LOST_TSYNC\n");
@@ -138,6 +163,7 @@ extern "C" void app_main(void)
   os_init();
   i2c.init();
   ssd.init();
+  htu.init();
 
   LMIC_reset();
   printf("LMIC RESET\n");

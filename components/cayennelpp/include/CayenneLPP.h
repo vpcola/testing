@@ -11,6 +11,7 @@
 
 //LPP_BATTERY = // TODO Unsupported in IPSO Smart Object
 //LPP_PROXIMITY = // TODO Unsupported in IPSO Smart Object
+#define LPP_MAX_LEN 51
 
 #define LPP_DIGITAL_INPUT 0         // 1 byte
 #define LPP_DIGITAL_OUTPUT 1        // 1 byte
@@ -42,7 +43,11 @@
 class CayenneLPP
 {
 public:
-  CayenneLPP(uint8_t size);
+  CayenneLPP()
+  :maxsize(LPP_MAX_LEN),
+  cursor(0)
+  {}
+
   ~CayenneLPP();
 
   void reset(void);
@@ -66,7 +71,7 @@ public:
   uint8_t addGPS(uint8_t channel, float latitude, float longitude, float meters);
 
 private:
-  uint8_t *buffer;
+  uint8_t buffer[LPP_MAX_LEN];
   uint8_t maxsize;
   uint8_t cursor;
 };

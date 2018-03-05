@@ -34,8 +34,6 @@
 // You should not, however, change the lmic.[hc]
 
 
-
-//================================================================================
 //================================================================================
 // Target platform as C library
 typedef unsigned char      bit_t;
@@ -119,7 +117,8 @@ void os_run (void);
 #error Illegal OSTICKS_PER_SEC - must be in range [10000:64516]. One tick must be 15.5us .. 100us long.
 #endif
 
-typedef s4_t  ostime_t;
+//typedef s4_t  ostime_t;
+typedef ll_s8_t  ostime_t;
 
 #if !HAS_ostick_conv
 #define us2osticks(us)   ((ostime_t)( ((ll_s8_t)(us) * OSTICKS_PER_SEC) / 1000000))

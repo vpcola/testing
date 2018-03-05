@@ -234,26 +234,27 @@ static void hal_time_init ()
   ESP_LOGI(TAG, "Finished initalisation of timer");
 }
 
-u4_t hal_ticks () {
+ll_u8_t hal_ticks () {
   uint64_t val;
   timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &val);
-  uint32_t t = (uint32_t) val;
+  //uint32_t t = (uint32_t) val;
   //u4_t result = (u4_t) us2osticks(t);
-  return t;
+  return (ll_u8_t) val;
+  //return t;
 }
 
 // Returns the number of ticks until time. Negative values indicate that
 // time has already passed.
-static s4_t delta_time(u4_t time) {
-    return (s4_t)(time - hal_ticks());
+static ll_s8_t delta_time(ll_u8_t time) {
+    return (ll_s8_t)(time - hal_ticks());
 }
 
 
-void hal_waitUntil (u4_t time) {
+void hal_waitUntil (ll_u8_t time) {
 
-    ESP_LOGI(TAG, "Wait until (%d)", time);
-    s4_t delta = delta_time(time);
-    ESP_LOGI(TAG, "Wait delta %d", delta);
+    ESP_LOGI(TAG, "Wait until (%lld)", time);
+    ll_s8_t delta = delta_time(time);
+   // ESP_LOGI(TAG, "Wait delta %d", delta);
 
     while( delta > 2000){
         vTaskDelay(1 / portTICK_PERIOD_MS);
@@ -265,7 +266,7 @@ void hal_waitUntil (u4_t time) {
 }
 
 // check and rewind for target time
-u1_t hal_checkTimer (u4_t time) {
+u1_t hal_checkTimer (ll_u8_t time) {
   return 1;
 }
 
