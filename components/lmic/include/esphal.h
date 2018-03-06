@@ -12,6 +12,11 @@
 extern "C" {
 #endif
 
+#define TIMER_DIVIDER   1600
+// ESP32's APB Clock (TIMER_BASE_CLK) is running at 80Mhz
+#define TIMER_SCALE     (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
+#define OSTICKS_PER_SEC 50000 // TIMER_SCALE = 50000 (50Khz)
+
 typedef struct {
     u1_t nss;
     u1_t rst;

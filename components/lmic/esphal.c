@@ -219,7 +219,7 @@ static void hal_time_init ()
   config.alarm_en = 0;
   config.auto_reload = 0;
   config.counter_dir = TIMER_COUNT_UP;
-  config.divider = 120;
+  config.divider = TIMER_DIVIDER;
   config.intr_type = 0;
   config.counter_en = TIMER_PAUSE;
   /*Configure timer*/
@@ -254,14 +254,21 @@ void hal_waitUntil (ll_u8_t time) {
 
     ESP_LOGI(TAG, "Wait until (%lld)", time);
     ll_s8_t delta = delta_time(time);
-   // ESP_LOGI(TAG, "Wait delta %d", delta);
-
+    ESP_LOGI(TAG, "Wait for %lld (%d ms)", delta, osticks2ms(delta));
+#if 0
     while( delta > 2000){
         vTaskDelay(1 / portTICK_PERIOD_MS);
         delta -= 1000;
     } if(delta > 0){
         vTaskDelay(delta / portTICK_PERIOD_MS);
     }
+#endif
+    while(hal_ticks() < time)
+    {
+        // yield to higher priority task
+        taskYIELD();
+    }
+
     ESP_LOGI(TAG, "Done waiting until");
 }
 

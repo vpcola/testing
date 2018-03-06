@@ -3,6 +3,9 @@
 #include "esp_system.h"
 #include "esp_event.h"
 #include "esp_event_loop.h"
+#include "esp_attr.h"
+#include "esp_log.h"
+#include "esp_sleep.h"
 #include "nvs_flash.h"
 
 #include "lmic.h"
@@ -19,7 +22,14 @@ void os_getArtEui (u1_t* buf) { }
 void os_getDevEui (u1_t* buf) { }
 void os_getDevKey (u1_t* buf) { }
 
-static uint8_t mydata[] = "Uela!";
+static const char *TAG = "MAIN";
+
+/* Variable holding number of times ESP32 restarted since first boot.
+ * It is placed into RTC memory using RTC_DATA_ATTR and
+ * maintains its value when ESP32 wakes from deep sleep.
+ */
+RTC_DATA_ATTR static int boot_count = 0;
+static const int deep_sleep_sec = 60 * 5; // Sleep every five minutes
 
 // Using the TTGO ESP32 Lora or Heltec ESP32 Lora board
 // https://www.thethingsnetwork.org/forum/t/big-esp32-sx127x-topic-part-2/11973
@@ -37,16 +47,27 @@ SSD1306   ssd(i2c, GPIO_NUM_16);
 HTU21D    htu(i2c);
 CayenneLPP lpp;
 
-const unsigned TX_INTERVAL = 5000;
 
-void do_send(osjob_t * arg)
+// Time to linger before going to deep sleep
+const unsigned LINGER_TIME = 5000;
+
+extern "C" void do_deepsleep(osjob_t * arg)
+{
+    // Turn off oled display
+    ssd.PowerOff();
+    // Enter deep sleep
+    ESP_LOGI(TAG, "Entering deep sleep for %d seconds", deep_sleep_sec);
+    esp_deep_sleep(1000000LL * deep_sleep_sec);    
+}
+
+extern "C" void do_send(osjob_t * arg)
 {
     char tmpbuff[50];
     lpp.reset();
 
-    printf("do_send() called! ... Sending data!\n");
+    ESP_LOGD(TAG, "do_send() called! ... Sending data!");
     if (LMIC.opmode & OP_TXRXPEND) {
-        printf("OP_TXRXPEND, not sending\n");
+        ESP_LOGI(TAG, "OP_TXRXPEND, not sending!");
     } else {
         float temperature;
         float humidity;
@@ -58,6 +79,7 @@ void do_send(osjob_t * arg)
             ssd.GotoXY(0, 15);
             ssd.Puts(&tmpbuff[0], &Font_7x10, SSD1306::White);
             lpp.addTemperature(1, temperature);
+            ESP_LOGI(TAG, "HTU21D Temperature : %.2f C", temperature);
         }
         if (htu.readHumidity(&humidity))
         {
@@ -65,12 +87,12 @@ void do_send(osjob_t * arg)
             ssd.GotoXY(0,27);
             ssd.Puts(&tmpbuff[0], &Font_7x10, SSD1306::White);
             lpp.addRelativeHumidity(2, humidity);
+            ESP_LOGI(TAG, "HTU21D Humidity : %.2f %%", humidity);
         }
         ssd.UpdateScreen();
 
-        //LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
         LMIC_setTxData2(1, lpp.getBuffer(), lpp.getSize(), 0); 
-        printf("Packet queued\n");
+        ESP_LOGD(TAG, "Packet queued");
     }
 }
 
@@ -79,94 +101,61 @@ void do_receive()
     if (LMIC.dataLen > 0)
     {
         // TODO: Copy and process the data from LMIC.dataBeg to a buffer
-        printf("Received %d of data\n", LMIC.dataLen);
+        ESP_LOGD(TAG, "Received %d of data\n", LMIC.dataLen);
     }
 }
 
 // Callbacks from lmic, needs C linkage
 extern "C" void onEvent (ev_t ev) {
-    printf("%lld", os_getTime());
-    printf(": ");
+    ESP_LOGI(TAG, "Event Time: %lld, %d", os_getTime(), ev);
     switch(ev) {
-        case EV_SCAN_TIMEOUT:
-            printf("EV_SCAN_TIMEOUT\n");
-            break;
-        case EV_BEACON_FOUND:
-            printf("EV_BEACON_FOUND\n");
-            break;
-        case EV_BEACON_MISSED:
-            printf("EV_BEACON_MISSED\n");
-            break;
-        case EV_BEACON_TRACKED:
-            printf("EV_BEACON_TRACKED\n");
-            break;
-        case EV_JOINING:
-            printf("EV_JOINING\n");
-            break;
-        case EV_JOINED:
-            printf("EV_JOINED\n");
-            break;
-        case EV_RFU1:
-            printf("EV_RFU1\n");
-            break;
-        case EV_JOIN_FAILED:
-            printf("EV_JOIN_FAILED\n");
-            break;
-        case EV_REJOIN_FAILED:
-            printf("EV_REJOIN_FAILED\n");
-            break;
         case EV_TXCOMPLETE:
-            printf("EV_TXCOMPLETE (includes waiting for RX windows)\n");
+            ESP_LOGI(TAG, "EV_TXCOMPLETE (includes waiting for RX windows)");
             if (LMIC.txrxFlags & TXRX_ACK)
-              printf("Received ack\n");
+              ESP_LOGI(TAG, "Received ack");
             if (LMIC.dataLen) {
-              printf("Received %d bytes of payload\n", LMIC.dataLen);
+              ESP_LOGI(TAG, "Received %d bytes of payload\n", LMIC.dataLen);
             }
             // Schedule the send job at some dela
-            os_setTimedCallback(&LMIC.osjob, os_getTime()+ms2osticks(TX_INTERVAL), FUNC_ADDR(do_send));
+            os_setTimedCallback(&LMIC.osjob, os_getTime()+ms2osticks(LINGER_TIME), FUNC_ADDR(do_deepsleep));
             break;
-        case EV_LOST_TSYNC:
-            printf("EV_LOST_TSYNC\n");
-            break;
-        case EV_RESET:
-            printf("EV_RESET\n");
-            break;
-        case EV_RXCOMPLETE:
+         case EV_RXCOMPLETE:
             // data received in ping slot
-            printf("EV_RXCOMPLETE\n");
+            ESP_LOGI(TAG, "EV_RXCOMPLETE");
             do_receive();
             break;
-        case EV_LINK_DEAD:
-            printf("EV_LINK_DEAD\n");
-            break;
-        case EV_LINK_ALIVE:
-            printf("EV_LINK_ALIVE\n");
-            break;
-         default:
-            // printf("Unknown event: %d\n", ev);
+          default:
+            ESP_LOGI(TAG, "Unknown event: %d", ev);
             break;
     }
 }
 
 void os_runloop(void * arg) 
 {
+  // Send an Update to TTN
+  ESP_LOGI(TAG, "Sending TTN Update!");
   do_send(NULL);
-
-  while(1) {
+  // Run the lmic state machine
+  // wait until we receive a TX_COMPLETE (transmission complete) event
+  // and go in to deep sleep...
+  while(true) {
     os_run();
-    // vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
 extern "C" void app_main(void)
 {
+  ++boot_count;
+  ESP_LOGI(TAG, "Wake(%d) initializing ....", boot_count);
+
   os_init();
   i2c.init();
   ssd.init();
   htu.init();
+  ESP_LOGI(TAG, "Initialize peripherals, doing LMIC reset ...");
 
   LMIC_reset();
-  printf("LMIC RESET\n");
+  ESP_LOGI(TAG, "LMIC RESET");
 
   uint8_t appskey[sizeof(APPSKEY)];
   uint8_t nwkskey[sizeof(NWKSKEY)];
