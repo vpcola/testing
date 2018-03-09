@@ -10,6 +10,7 @@
 
 #include "lmic.h"
 #include "I2CMaster.h"
+#include "SPIMaster.h"
 #include "SSD1306.h"
 #include "HTU21D.h"
 #include "CayenneLPP.h"
@@ -31,6 +32,8 @@ static const char *TAG = "MAIN";
 RTC_DATA_ATTR static int boot_count = 0;
 static const int deep_sleep_sec = 60 * 5; // Sleep every five minutes
 
+// We initialize the SPI master here
+SPIMaster spi(HSPI_HOST, GPIO_NUM_19, GPIO_NUM_27, GPIO_NUM_5); 
 // Using the TTGO ESP32 Lora or Heltec ESP32 Lora board
 // https://www.thethingsnetwork.org/forum/t/big-esp32-sx127x-topic-part-2/11973
 extern "C" const lmic_pinmap_t lmic_pins = {
@@ -38,8 +41,9 @@ extern "C" const lmic_pinmap_t lmic_pins = {
     .rst = 14,
     .dio = {26, 33, 32},
     // MISO, MOSI, SCK
-    .spi = {19, 27, 5},
+    //.spi = {19, 27, 5},
 };
+
 
 // I2CMaster (I2C Num, SDA, SCL)
 I2CMaster i2c(I2C_NUM_1, GPIO_NUM_4, GPIO_NUM_15);
@@ -147,11 +151,16 @@ extern "C" void app_main(void)
 {
   ++boot_count;
   ESP_LOGI(TAG, "Wake(%d) initializing ....", boot_count);
-
-  os_init();
+  // Devices attached to the I2C Bus
   i2c.init();
   ssd.init();
   htu.init();
+
+  spi.init();
+  // LMIC os_init has C linkage, make sure
+  // we pass in the same HSPI_HOST to add
+  // the SPI device
+  os_init(HSPI_HOST);
   ESP_LOGI(TAG, "Initialize peripherals, doing LMIC reset ...");
 
   LMIC_reset();

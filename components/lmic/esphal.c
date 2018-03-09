@@ -11,17 +11,6 @@
 
 static const char* TAG = "LMIC_HAL";
 
-// Move this to main.c so that it'll be
-// easy to assign pin mappings there
-#if 0
-const lmic_pinmap_t lmic_pins = {
-    .nss = 22,
-    .rst = 19,
-    .dio = {23, 18, 5},
-    .spi = {4, 2, 17},
-};
-#endif
-
 extern const lmic_pinmap_t lmic_pins;
 
 #define ESP_INTR_FLAG_DEFAULT 0
@@ -117,12 +106,17 @@ void hal_io_check()
 // -----------------------------------------------------------------------------
 // SPI
 
-spi_device_handle_t spi_handle;
+static spi_device_handle_t spi_handle;
 
-static void hal_spi_init () {
+static void hal_spi_init (uint8_t spihost) 
+{
   ESP_LOGI(TAG, "Starting SPI initialization");
   esp_err_t ret;
 
+  // We assume SPI bus master is already
+  // initialized before a call to spi_bus_add_device()
+  // below.
+#if 0
   // init master
   spi_bus_config_t buscfg={
     .miso_io_num = lmic_pins.spi[0],
@@ -131,6 +125,7 @@ static void hal_spi_init () {
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
   };
+#endif
 
   // init device
   spi_device_interface_config_t devcfg={
@@ -140,10 +135,11 @@ static void hal_spi_init () {
     .queue_size = 7,
   };
 
-  ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1);
-  assert(ret==ESP_OK);
+  //ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1);
+  //assert(ret==ESP_OK);
 
-  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi_handle);
+  //ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi_handle);
+  ret = spi_bus_add_device((spi_host_device_t) spihost, &devcfg, &spi_handle);
   assert(ret==ESP_OK);
 
   ESP_LOGI(TAG, "Finished SPI initialization");
@@ -252,11 +248,12 @@ void hal_sleep () {
 
 // -----------------------------------------------------------------------------
 
-void hal_init () {
+void hal_init (uint8_t spi) 
+{
     // configure radio I/O and interrupt handler
     hal_io_init();
     // configure radio SPI
-    hal_spi_init();
+    hal_spi_init(spi);
     // configure timer and interrupt handler
     hal_time_init();
 }

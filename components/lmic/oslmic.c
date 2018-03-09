@@ -33,9 +33,10 @@ static struct {
     osjob_t* runnablejobs;
 } OS;
 
-void os_init () {
+void os_init (uint8_t spi) 
+{
     memset(&OS, 0x00, sizeof(OS));
-    hal_init();
+    hal_init(spi);
     radio_init();
     LMIC_init();
 }
