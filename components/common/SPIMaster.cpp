@@ -16,8 +16,16 @@ void SPIMaster::init()
     buscfg.quadwp_io_num = m_quadwp;
     buscfg.quadhd_io_num = m_quadhd;
 
-    ret = ::spi_bus_initialize(m_spi, &buscfg, 1); // Enable DMA 1
-    assert(ret == ESP_OK);
+    ESP_LOGI(TAG, "Initializing SPI bus (%d)", m_spi);
+    ESP_LOGI(TAG, "Miso Pin = %d", m_miso);
+    ESP_LOGI(TAG, "Mosi Pin = %d", m_mosi);
+    ESP_LOGI(TAG, "SCLK pin = %d", m_sclk);
+
+    ret = ::spi_bus_initialize(m_spi, &buscfg, 0); // Enable DMA 1
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Call to spi_bus_initialize() failed!");
+    }
 }
 
 esp_err_t SPIMaster::addDevice(spi_device_interface_config_t * dev_config, spi_device_handle_t * spi_handle)
