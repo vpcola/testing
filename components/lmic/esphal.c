@@ -35,7 +35,7 @@ static void hal_io_init () {
   gpio_config_t io_conf;
   io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
   io_conf.mode = GPIO_MODE_OUTPUT;
-  io_conf.pin_bit_mask = ((1ULL<<lmic_pins.nss) | (1ULL<<lmic_pins.rst));
+  io_conf.pin_bit_mask = (1ULL<<lmic_pins.rst);
   io_conf.pull_down_en = 0;
   io_conf.pull_up_en = 0;
   gpio_config(&io_conf);
@@ -65,9 +65,9 @@ void hal_pin_rxtx (u1_t val) {
 
 
 // set radio NSS pin to given value
-void hal_pin_nss (u1_t val) {
-  gpio_set_level(lmic_pins.nss, val);
-}
+//void hal_pin_nss (u1_t val) {
+//  gpio_set_level(lmic_pins.nss, val);
+//}
 
 // set radio RST pin to given value (or keep floating!)
 void hal_pin_rst (u1_t val) {
@@ -131,13 +131,15 @@ static void hal_spi_init (uint8_t spihost)
   spi_device_interface_config_t devcfg={
     .clock_speed_hz = 10000000,
     .mode = 1,
-    .spics_io_num = -1,
+    .spics_io_num = lmic_pins.nss, // -1,
     .queue_size = 7,
+    .address_bits = 8,
   };
 
   //ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1);
   //assert(ret==ESP_OK);
 
+  // Attach this device to the SPI Bus
   //ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi_handle);
   ret = spi_bus_add_device((spi_host_device_t) spihost, &devcfg, &spi_handle);
   assert(ret==ESP_OK);
@@ -158,6 +160,28 @@ u1_t hal_spi (u1_t data) {
   assert(ret == ESP_OK);
 
   return (u1_t) rxData;
+}
+
+int hal_spi_transfer(uint8_t addr, uint8_t * txdata, uint8_t * rxdata, size_t size)
+{
+    // TODO: Setup the SPI transaction
+    // to transfer the data
+    //
+    spi_transaction_t t;
+    memset(&t, 0, sizeof(t));
+
+    t.length = size * 8; // size in bits
+    t.rx_buffer = rxdata;
+    t.tx_buffer = txdata;
+    t.addr = addr;
+
+    if (spi_device_transmit(spi_handle, &t) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error on SPI Transfer!");
+        return 0;
+    }
+
+    return size;
 }
 
 // -----------------------------------------------------------------------------

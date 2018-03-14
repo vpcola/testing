@@ -34,7 +34,8 @@ void hal_init (uint8_t spi);
 /*
  * drive radio NSS pin (0=low, 1=high).
  */
-void hal_pin_nss (u1_t val);
+//void hal_pin_nss (u1_t val);
+int hal_spi_transfer(uint8_t addr, uint8_t * txdata, uint8_t * rxdata, size_t size);
 
 /*
  * drive radio RX/TX pins (0=rx, 1=tx).
