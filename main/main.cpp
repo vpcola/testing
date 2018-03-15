@@ -30,7 +30,7 @@ static const char *TAG = "MAIN";
  * maintains its value when ESP32 wakes from deep sleep.
  */
 RTC_DATA_ATTR static int boot_count = 0;
-static const int deep_sleep_sec = 60 * 5; // Sleep every five minutes
+static const int deep_sleep_sec = 10; // 60 * 5; // Sleep every five minutes
 
 // We initialize the SPI master here
 SPIMaster spi(HSPI_HOST, GPIO_NUM_19, GPIO_NUM_27, GPIO_NUM_5); 
@@ -136,6 +136,8 @@ extern "C" void onEvent (ev_t ev) {
 
 void os_runloop(void * arg) 
 {
+  // Update the send counter based on boot_count
+  LMIC.seqnoUp = boot_count;
   // Send an Update to TTN
   ESP_LOGI(TAG, "Sending TTN Update!");
   do_send(NULL);
