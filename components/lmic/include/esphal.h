@@ -23,19 +23,12 @@ typedef struct {
     u1_t nss;
     u1_t rst;
     u1_t dio[3];  // DIO0, DIO1, DIO2
-//    u1_t spi[3];  // MISO, MOSI, SCK
 } lmic_pinmap_t;
 
 /*
  * initialize hardware (IO, SPI, TIMER, IRQ).
  */
 void hal_init (uint8_t spi);
-
-/*
- * drive radio NSS pin (0=low, 1=high).
- */
-//void hal_pin_nss (u1_t val);
-int hal_spi_transfer(uint8_t addr, uint8_t * txdata, uint8_t * rxdata, size_t size);
 
 /*
  * drive radio RX/TX pins (0=rx, 1=tx).
@@ -53,6 +46,18 @@ void hal_pin_rst (u1_t val);
  *   - read byte and return value
  */
 u1_t hal_spi (u1_t outval);
+
+/*
+ * Perform SPI transfers with radio.
+ * addr - the radio register address
+ * txdata - pointer to the transmit data buffer, can be NULL for miso only
+ *          stage.
+ * rxdata - pointer to the receive buffer, can be NULL for mosi only stage.
+ * size - the length in bytes of data to transmit or receive. In full duplex
+ *        mode (both rxdata and txdata are not NULL), the lenght follows the 
+ *        number bytes of data transmitted.
+ */
+int hal_spi_transfer(uint8_t addr, uint8_t * txdata, uint8_t * rxdata, size_t size);
 
 /*
  * disable all CPU interrupts.

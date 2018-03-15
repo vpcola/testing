@@ -64,11 +64,6 @@ void hal_pin_rxtx (u1_t val) {
 }
 
 
-// set radio NSS pin to given value
-//void hal_pin_nss (u1_t val) {
-//  gpio_set_level(lmic_pins.nss, val);
-//}
-
 // set radio RST pin to given value (or keep floating!)
 void hal_pin_rst (u1_t val) {
   gpio_config_t io_conf;
@@ -116,31 +111,17 @@ static void hal_spi_init (uint8_t spihost)
   // We assume SPI bus master is already
   // initialized before a call to spi_bus_add_device()
   // below.
-#if 0
-  // init master
-  spi_bus_config_t buscfg={
-    .miso_io_num = lmic_pins.spi[0],
-    .mosi_io_num = lmic_pins.spi[1],
-    .sclk_io_num = lmic_pins.spi[2],
-    .quadwp_io_num = -1,
-    .quadhd_io_num = -1,
-  };
-#endif
 
-  // init device
+  // initialize the spi device
   spi_device_interface_config_t devcfg={
     .clock_speed_hz = 10000000,
     .mode = 1,
-    .spics_io_num = lmic_pins.nss, // -1,
+    .spics_io_num = lmic_pins.nss,
     .queue_size = 7,
     .address_bits = 8,
   };
 
-  //ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1);
-  //assert(ret==ESP_OK);
-
   // Attach this device to the SPI Bus
-  //ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi_handle);
   ret = spi_bus_add_device((spi_host_device_t) spihost, &devcfg, &spi_handle);
   assert(ret==ESP_OK);
 
@@ -164,9 +145,6 @@ u1_t hal_spi (u1_t data) {
 
 int hal_spi_transfer(uint8_t addr, uint8_t * txdata, uint8_t * rxdata, size_t size)
 {
-    // TODO: Setup the SPI transaction
-    // to transfer the data
-    //
     spi_transaction_t t;
     memset(&t, 0, sizeof(t));
 
@@ -214,10 +192,7 @@ static void hal_time_init ()
 ll_u8_t hal_ticks () {
   uint64_t val;
   timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &val);
-  //uint32_t t = (uint32_t) val;
-  //u4_t result = (u4_t) us2osticks(t);
   return (ll_u8_t) val;
-  //return t;
 }
 
 // Returns the number of ticks until time. Negative values indicate that

@@ -21,7 +21,7 @@ void SPIMaster::init()
     ESP_LOGI(TAG, "Mosi Pin = %d", m_mosi);
     ESP_LOGI(TAG, "SCLK pin = %d", m_sclk);
 
-    ret = ::spi_bus_initialize(m_spi, &buscfg, 0); // Enable DMA 1
+    ret = ::spi_bus_initialize(m_spi, &buscfg, m_dma); 
     if (ret != ESP_OK)
     {
         ESP_LOGE(TAG, "Call to spi_bus_initialize() failed!");

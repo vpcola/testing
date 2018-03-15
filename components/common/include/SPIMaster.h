@@ -17,6 +17,7 @@ class SPIMaster
                 gpio_num_t miso=MISO_PIN, 
                 gpio_num_t mosi=MOSI_PIN, 
                 gpio_num_t sclk=SCLK_PIN,
+                int dma_channel = 0,
                 int quadwp = -1,
                 int quadhd = -1,
                 int max_sz = 0)
@@ -24,6 +25,7 @@ class SPIMaster
                 m_miso(miso),
                 m_mosi(mosi),
                 m_sclk(sclk),
+                m_dma(dma_channel),
                 m_quadwp(quadwp),
                 m_quadhd(quadhd),
                 max_transfer_sz(max_sz)
@@ -38,6 +40,7 @@ class SPIMaster
         gpio_num_t m_miso;
         gpio_num_t m_mosi;
         gpio_num_t m_sclk;
+        int m_dma;
         int m_quadwp;
         int m_quadhd;
         int max_transfer_sz;
