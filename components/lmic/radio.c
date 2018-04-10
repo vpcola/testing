@@ -1,31 +1,16 @@
-/*
- * Copyright (c) 2014-2016 IBM Corporation.
- * All rights reserved.
+/*******************************************************************************
+ * Copyright (c) 2014-2015 IBM Corporation.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of the <organization> nor the
- *    names of its contributors may be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * Contributors:
+ *    IBM Zurich Research Lab - initial API, implementation and documentation
+ *******************************************************************************/
 
 #include "lmic.h"
+#include <stdio.h>
 
 // ----------------------------------------
 // Registers Mapping
@@ -281,6 +266,7 @@ static void writeReg (u1_t addr, u1_t data )
     hal_spi_transfer((addr | 0x80), &data, NULL, 1); 
 }
 
+
 static u1_t readReg (u1_t addr) 
 {
     u1_t val;
@@ -289,6 +275,7 @@ static u1_t readReg (u1_t addr)
 
     return val;
 }
+
 
 static void writeBuf (u1_t addr, xref2u1_t buf, u1_t len) 
 {
@@ -388,13 +375,6 @@ static void configLoraModem () {
 
         // set ModemConfig2 (sf, AgcAutoOn=1 SymbTimeoutHi=00)
         writeReg(LORARegModemConfig2, (SX1272_MC2_SF7 + ((sf-1)<<4)) | 0x04);
-
-#if CFG_TxContinuousMode
-        // Only for testing
-        // set ModemConfig2 (sf, TxContinuousMode=1, AgcAutoOn=1 SymbTimeoutHi=00)
-        writeReg(LORARegModemConfig2, (SX1272_MC2_SF7 + ((sf-1)<<4)) | 0x06);
-#endif
-
 #else
 #error Missing CFG_sx1272_radio/CFG_sx1276_radio
 #endif /* CFG_sx1272_radio */
@@ -402,7 +382,7 @@ static void configLoraModem () {
 
 static void configChannel () {
     // set frequency: FQ = (FRF * 32 Mhz) / (2 ^ 19)
-    ll_u8_t frf = ((ll_u8_t)LMIC.freq << 19) / 32000000;
+    uint64_t frf = ((uint64_t)LMIC.freq << 19) / 32000000;
     writeReg(RegFrfMsb, (u1_t)(frf>>16));
     writeReg(RegFrfMid, (u1_t)(frf>> 8));
     writeReg(RegFrfLsb, (u1_t)(frf>> 0));
@@ -518,6 +498,18 @@ static void txlora () {
 
     // now we actually start the transmission
     opmode(OPMODE_TX);
+
+#if LMIC_DEBUG_LEVEL > 0
+    u1_t sf = getSf(LMIC.rps) + 6; // 1 == SF7
+    u1_t bw = getBw(LMIC.rps);
+    u1_t cr = getCr(LMIC.rps);
+    printf("%lu: TXMODE, freq=%lu, len=%d, SF=%d, BW=%d, CR=4/%d, IH=%d\n",
+           (unsigned long int) os_getTime(), (unsigned long int) LMIC.freq, LMIC.dataLen, sf,
+           bw == BW125 ? 125 : (bw == BW250 ? 250 : 500),
+           cr == CR_4_5 ? 5 : (cr == CR_4_6 ? 6 : (cr == CR_4_7 ? 7 : 8)),
+           getIh(LMIC.rps)
+   );
+#endif
 }
 
 // start transmitter (buf=LMIC.frame, len=LMIC.dataLen)
@@ -534,7 +526,7 @@ static void starttx () {
 
 enum { RXMODE_SINGLE, RXMODE_SCAN, RXMODE_RSSI };
 
-static const u1_t rxlorairqmask[] = {
+static CONST_TABLE(u1_t, rxlorairqmask)[] = {
     [RXMODE_SINGLE] = IRQ_LORA_RXDONE_MASK|IRQ_LORA_RXTOUT_MASK,
     [RXMODE_SCAN]   = IRQ_LORA_RXDONE_MASK,
     [RXMODE_RSSI]   = 0x00,
@@ -561,15 +553,10 @@ static void rxlora (u1_t rxmode) {
     writeReg(RegLna, LNA_RX_GAIN);
     // set max payload size
     writeReg(LORARegPayloadMaxLength, 64);
+#if !defined(DISABLE_INVERT_IQ_ON_RX)
     // use inverted I/Q signal (prevent mote-to-mote communication)
-
-    // XXX: use flag to switch on/off inversion
-    if (LMIC.noRXIQinversion) {
-        writeReg(LORARegInvertIQ, readReg(LORARegInvertIQ) & ~(1<<6));
-    } else {
-        writeReg(LORARegInvertIQ, readReg(LORARegInvertIQ)|(1<<6));
-    }
-
+    writeReg(LORARegInvertIQ, readReg(LORARegInvertIQ)|(1<<6));
+#endif
     // set symbol timeout (for single rx)
     writeReg(LORARegSymbTimeoutLsb, LMIC.rxsyms);
     // set sync word
@@ -580,7 +567,7 @@ static void rxlora (u1_t rxmode) {
     // clear all radio IRQ flags
     writeReg(LORARegIrqFlags, 0xFF);
     // enable required radio IRQs
-    writeReg(LORARegIrqFlagsMask, ~rxlorairqmask[rxmode]);
+    writeReg(LORARegIrqFlagsMask, ~TABLE_GET_U1(rxlorairqmask, rxmode));
 
     // enable antenna switch for RX
     hal_pin_rxtx(0);
@@ -592,6 +579,24 @@ static void rxlora (u1_t rxmode) {
     } else { // continous rx (scan or rssi)
         opmode(OPMODE_RX);
     }
+
+#if LMIC_DEBUG_LEVEL > 0
+    if (rxmode == RXMODE_RSSI) {
+        printf("RXMODE_RSSI\n");
+    } else {
+        u1_t sf = getSf(LMIC.rps) + 6; // 1 == SF7
+        u1_t bw = getBw(LMIC.rps);
+        u1_t cr = getCr(LMIC.rps);
+        printf("%lu: %s, freq=%lu, SF=%d, BW=%d, CR=4/%d, IH=%d\n",
+               (unsigned long int) os_getTime(),
+               rxmode == RXMODE_SINGLE ? "RXMODE_SINGLE" : (rxmode == RXMODE_SCAN ? "RXMODE_SCAN" : "UNKNOWN_RX"),
+               (unsigned long int) LMIC.freq, sf,
+               bw == BW125 ? 125 : (bw == BW250 ? 250 : 500),
+               cr == CR_4_5 ? 5 : (cr == CR_4_6 ? 6 : (cr == CR_4_7 ? 7 : 8)),
+               getIh(LMIC.rps)
+       );
+    }
+#endif
 }
 
 static void rxfsk (u1_t rxmode) {
@@ -738,7 +743,7 @@ u1_t radio_rssi () {
     return r;
 }
 
-static const u2_t LORA_RXDONE_FIXUP[] = {
+static CONST_TABLE(u2_t, LORA_RXDONE_FIXUP)[] = {
     [FSK]  =     us2osticks(0), // (   0 ticks)
     [SF7]  =     us2osticks(0), // (   0 ticks)
     [SF8]  =  us2osticks(1648), // (  54 ticks)
@@ -751,16 +756,6 @@ static const u2_t LORA_RXDONE_FIXUP[] = {
 // called by hal ext IRQ handler
 // (radio goes to stanby mode after tx/rx operations)
 void radio_irq_handler (u1_t dio) {
-#if CFG_TxContinuousMode
-    // clear radio IRQ flags
-    writeReg(LORARegIrqFlags, 0xFF);
-    u1_t p = readReg(LORARegFifoAddrPtr);
-    writeReg(LORARegFifoAddrPtr, 0x00);
-    u1_t s = readReg(RegOpMode);
-    u1_t c = readReg(LORARegModemConfig2);
-    opmode(OPMODE_TX);
-    return;
-#endif
     ostime_t now = os_getTime();
     if( (readReg(RegOpMode) & OPMODE_LORA) != 0) { // LORA modem
         u1_t flags = readReg(LORARegIrqFlags);
@@ -770,7 +765,7 @@ void radio_irq_handler (u1_t dio) {
         } else if( flags & IRQ_LORA_RXDONE_MASK ) {
             // save exact rx time
             if(getBw(LMIC.rps) == BW125) {
-                now -= LORA_RXDONE_FIXUP[getSf(LMIC.rps)];
+                now -= TABLE_GET_U2(LORA_RXDONE_FIXUP, getSf(LMIC.rps));
             }
             LMIC.rxtime = now;
             // read the PDU and inform the MAC that we received something
@@ -811,7 +806,7 @@ void radio_irq_handler (u1_t dio) {
             // indicate timeout
             LMIC.dataLen = 0;
         } else {
-            while(1);
+            ASSERT(0);
         }
     }
     // go from stanby to sleep

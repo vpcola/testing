@@ -2,10 +2,7 @@
 #define _hal_hpp_
 
 #include <stdint.h>
-
-//#define CFG_eu868 1
-#define CFG_us915 1
-#define CFG_sx1276_radio 1
+#include "config.h"
 
 
 #define USE_GPIO_INTERRUPTS 1
@@ -17,7 +14,6 @@ extern "C" {
 #define TIMER_DIVIDER   1600
 // ESP32's APB Clock (TIMER_BASE_CLK) is running at 80Mhz
 #define TIMER_SCALE     (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define OSTICKS_PER_SEC 50000 // TIMER_SCALE = 50000 (50Khz)
 
 typedef struct {
     u1_t nss;
@@ -79,19 +75,19 @@ void hal_sleep (void);
 /*
  * return 32-bit system time in ticks.
  */
-ll_u8_t hal_ticks (void);
+uint64_t hal_ticks (void);
 
 /*
  * busy-wait until specified timestamp (in ticks) is reached.
  */
-void hal_waitUntil (ll_u8_t time);
+void hal_waitUntil (uint64_t time);
 
 /*
  * check and rewind timer for target time.
  *   - return 1 if target time is close
  *   - otherwise rewind timer for target time or full period and return 0
  */
-u1_t hal_checkTimer (ll_u8_t targettime);
+u1_t hal_checkTimer (uint64_t targettime);
 
 /*
  * check if any interrupts has sent data to the queue and handles them
@@ -104,7 +100,7 @@ void hal_io_check(void);
  *   - called by assertions
  *   - action could be HALT or reboot
  */
-void hal_failed (void);
+void hal_failed (const char * file, uint16_t line);
 
 #ifdef __cplusplus
 }

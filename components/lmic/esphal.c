@@ -189,23 +189,23 @@ static void hal_time_init ()
   ESP_LOGI(TAG, "Finished initalisation of timer");
 }
 
-ll_u8_t hal_ticks () {
+uint64_t hal_ticks () {
   uint64_t val;
   timer_get_counter_value(TIMER_GROUP_0, TIMER_1, &val);
-  return (ll_u8_t) val;
+  return (uint64_t) val;
 }
 
 // Returns the number of ticks until time. Negative values indicate that
 // time has already passed.
-static ll_s8_t delta_time(ll_u8_t time) {
-    return (ll_s8_t)(time - hal_ticks());
+static int64_t delta_time(uint64_t time) {
+    return (int64_t)(time - hal_ticks());
 }
 
 
-void hal_waitUntil (ll_u8_t time) {
+void hal_waitUntil (uint64_t time) {
 
     ESP_LOGI(TAG, "Wait until (%lld)", time);
-    ll_s8_t delta = delta_time(time);
+    int64_t delta = delta_time(time);
     ESP_LOGI(TAG, "Wait for %lld (%d ms)", delta, osticks2ms(delta));
     while(hal_ticks() < time)
     {
@@ -217,7 +217,7 @@ void hal_waitUntil (ll_u8_t time) {
 }
 
 // check and rewind for target time
-u1_t hal_checkTimer (ll_u8_t time) {
+u1_t hal_checkTimer (uint64_t time) {
   return 1;
 }
 
@@ -257,7 +257,8 @@ void hal_init (uint8_t spi)
     hal_time_init();
 }
 
-void hal_failed () {
+void hal_failed (const char * file, uint16_t line) {
+    ESP_LOGE(TAG, "Failed %s line number %d", file, line);
     // HALT...
     hal_disableIRQs();
     hal_sleep();

@@ -111,7 +111,7 @@ void do_receive()
 
 // Callbacks from lmic, needs C linkage
 extern "C" void onEvent (ev_t ev) {
-    ESP_LOGI(TAG, "Event Time: %lld, %d", os_getTime(), ev);
+    ESP_LOGI(TAG, "Event Time: %d, %d", os_getTime(), ev);
     switch(ev) {
         case EV_TXCOMPLETE:
             ESP_LOGI(TAG, "EV_TXCOMPLETE (includes waiting for RX windows)");
